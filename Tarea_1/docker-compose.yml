@@ -1,0 +1,38 @@
+services:
+  test:
+    image: redis:alpine
+    container_name: test
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - test-data:/data
+    networks:
+      - redis-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      retries: 3
+      timeout: 5s
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: redis-insight
+    restart: unless-stopped
+    ports:
+      - "5540:5540"
+    volumes:
+      - redis-insight-data:/data
+    networks:
+      - redis-network
+    depends_on:
+      - test
+
+volumes:
+  test-data:
+    driver: local
+  redis-insight-data:
+    driver: local
+
+networks:
+  redis-network:
+    driver: bridge
