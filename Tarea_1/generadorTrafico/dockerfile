@@ -1,0 +1,12 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Instalar dependencias 
+RUN pip install --no-cache-dir numpy requests
+
+COPY generadorTrafico.py .
+
+EXPOSE 8000
+
+CMD ["python", "generadorTrafico.py"]
