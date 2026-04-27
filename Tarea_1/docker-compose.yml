@@ -1,38 +1,64 @@
 services:
-  test:
+  redis-db:
     image: redis:alpine
-    container_name: test
-    restart: unless-stopped
+    container_name: redis-db
+    # Se elige 200mb para registrar los hit and miss del cache, así que todo el sistema funcione correctamente
+    # Tambien se puede cambiar la politicas de eviccion, por ejemplo LRU: --maxmemory-policy allkeys-lru, LFU: --maxmemory-policy allkeys-lfu, FIFO: --maxmemory-policy volatile-ttl
+    command: >
+      redis-server 
+      --maxmemory 200mb 
+      --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
-    volumes:
-      - test-data:/data
     networks:
-      - redis-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      retries: 3
-      timeout: 5s
+      - sd-network
 
   redis-insight:
     image: redis/redisinsight:latest
     container_name: redis-insight
-    restart: unless-stopped
     ports:
       - "5540:5540"
-    volumes:
-      - redis-insight-data:/data
     networks:
-      - redis-network
+      - sd-network
     depends_on:
-      - test
+      - redis-db
 
-volumes:
-  test-data:
-    driver: local
-  redis-insight-data:
-    driver: local
+  generador_de_respuestas:
+    build: .
+    container_name: generador_de_respuestas
+    volumes:
+      - ./967_buildings.csv:/app/967_buildings.csv
+    command: uvicorn generadorRespuestas:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    networks:
+      - sd-network
+
+  cache:
+    build: .
+    container_name: cache
+    depends_on:
+      - redis-db
+      - generador_de_respuestas
+    command: uvicorn cache:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    networks:
+      - sd-network
+
+  generador_de_trafico:
+    build: .
+    container_name: generador_de_trafico
+    depends_on:
+      - cache
+    environment:
+      - RESPUESTAS_URL=http://cache:8000
+    stdin_open: true 
+    tty: true
+    command: python generadorTrafico.py
+    networks:
+      - sd-network
 
 networks:
-  redis-network:
+  sd-network:
     driver: bridge

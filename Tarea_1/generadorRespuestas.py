@@ -1,7 +1,10 @@
 import polars as pl
 import time
+import requests
+from fastapi import FastAPI, Body
 
-df = pl.read_csv("Tarea_1/967_buildings.csv")
+app = FastAPI()
+df = pl.read_csv("967_buildings.csv")
 print("Columnas:", df.columns)
 print("Total filas:", df.height)
 
@@ -147,7 +150,38 @@ def q5_confidence_dist(zone_id: str, bins: int = 5) -> list:
         })
     return result
 
+@app.post("/query")
 
+async def enviar_query(query: dict = Body()):
+
+    tipo = query.get("tipo", "").upper()
+    provincia = query.get("provincia")
+    confianza = query.get("confianza", 0.0)
+    
+    if tipo == "Q1":
+        result = q1Conteo(provincia, confianza)
+        return {"result": result}
+    
+    elif tipo == "Q2":
+        # Call your q2Area function
+        result = q2Area(provincia, confianza)
+        return {"result": result}
+
+    elif tipo == "Q3":
+        result = q3_density(provincia, confianza)
+        return {"result": result}
+
+    elif tipo == "Q4":
+        provincia2 = query.get("provincia2")
+        result = q4_compare(provincia, provincia2, confianza)
+        return {"result": result}
+
+    elif tipo == "Q5":
+        # Defaulting to 5 bins as per your logic
+        result = q5_confidence_dist(provincia, bins=5)
+        return {"result": result}
+
+    return {"error": "Invalid Query Type"}
 
 #print("Conteo en Pudahuel (confianza >= 0.5):", q1Conteo("Pudahuel", 0.5))
 #print("Áreas en Pudahuel (confianza >= 0.5):", q2Area("", 0.5))
