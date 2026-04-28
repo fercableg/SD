@@ -50,7 +50,7 @@ def areaZonaGeografica(zona):
         return  0   
 
 #Conteo de edificios en una zona
-def q1Conteo(zona: str, confidence_min: float = 0.0) -> int:
+def q1Conteo(zona: str, confidence_min: float = 0.0):
     contador = 0
     for i in range(df.height):
         fila = df.row(i)
@@ -63,7 +63,7 @@ def q1Conteo(zona: str, confidence_min: float = 0.0) -> int:
     return contador
 
 #área promedio y área total de edificaciones
-def q2Area(zona: str, confidence_min: float = 0.0) -> dict:
+def q2Area(zona: str, confidence_min: float = 0.0):
     time.sleep(0.5)  
     total_area = 0.0
     contador = 0
@@ -90,14 +90,14 @@ def q2Area(zona: str, confidence_min: float = 0.0) -> dict:
         }
 
 #Densidad de edificaciones por km²
-def q3_density(zona: str, confidence_min: float = 0.0) -> float:
+def q3_density(zona: str, confidence_min: float = 0.0):
     time.sleep(0.5)  
     count = q1Conteo(zona, confidence_min)
     area_km2 = areaZonaGeografica(zona)
     return round(count / area_km2, 2)
 
 #comparación de densidad entre dos zonas
-def q4_compare(zone_a: str, zone_b: str, confidence_min: float = 0.0) -> dict:
+def q4_compare(zone_a: str, zone_b: str, confidence_min: float = 0.0):
     time.sleep(0.5)  
     da = q3_density(zone_a, confidence_min)
     db = q3_density(zone_b, confidence_min)
@@ -109,7 +109,7 @@ def q4_compare(zone_a: str, zone_b: str, confidence_min: float = 0.0) -> dict:
     }
 
 # Distribución de confianza en una zona
-def q5_confidence_dist(zona: str, bins: int = 5) -> list:
+def q5_confidence_dist(zona: str, bins = 5):
     conteos = [0] * bins
     for i in range(df.height):
         fila = df.row(i)
@@ -182,7 +182,7 @@ def endpoint_q4(
 @app.get("/q5")
 def endpoint_q5(
     zona: str = Query(..., description="Nombre de la zona"),
-    bins: int = Query(..., description="Número de intervalos")
+    bins: int = Query(..., description="Num. intervalos")
 ):
     return q5_confidence_dist(zona, bins)
 
@@ -196,10 +196,7 @@ class ConsultaTrafico(BaseModel):
 
 @app.post("/query")
 async def recibir_consulta(consulta: ConsultaTrafico):
-    """
-    Endpoint unificado para que el generador de tráfico envíe consultas.
-    Redirige a las funciones específicas según el tipo.
-    """
+
     # Mapeo de tipos a funciones y parámetros
     tipo = consulta.tipo.upper()
     zona = consulta.provincia
@@ -217,11 +214,7 @@ async def recibir_consulta(consulta: ConsultaTrafico):
             return {"error": "Q4 requiere provincia2"}
         resultado = q4_compare(zona, zona2, conf)
     elif tipo == "Q5":
-        # Para Q5, el generador envía 'confianza' pero la función pide bins.
-        # Asumimos que 'confianza' representa el número de bins (o un valor por defecto 5)
-        # Como el payload de tráfico no envía 'bins', usamos un valor fijo 5 o redondeamos.
-        bins = max(2, int(conf * 10)) if conf > 0 else 5
-        resultado = q5_confidence_dist(zona, bins)
+        resultado = q5_confidence_dist(zona)
     else:
         return {"error": f"Tipo desconocido: {tipo}"}
 
