@@ -46,7 +46,7 @@ def areaZonaGeografica(zona):
         return  0   
 
 #Conteo de edificios en una zona
-def q1Conteo(zona: str, confidence_min: float = 0.0):
+def q1Conteo(zona, confidence_min):
     contador = 0
     for i in range(df.height):
         fila = df.row(i)
@@ -59,7 +59,7 @@ def q1Conteo(zona: str, confidence_min: float = 0.0):
     return contador
 
 #área promedio y área total de edificaciones
-def q2Area(zona: str, confidence_min: float = 0.0):
+def q2Area(zona, confidence_min):
     time.sleep(0.5)  # simula procesamiento
     total_area = 0.0
     contador = 0
@@ -86,14 +86,14 @@ def q2Area(zona: str, confidence_min: float = 0.0):
         }
 
 #Densidad de edificaciones por km
-def q3_density(zona: str, confidence_min: float = 0.0):
+def q3_density(zona, confidence_min):
     time.sleep(0.5) 
     count = q1Conteo(zona, confidence_min)
     area_km2 = areaZonaGeografica(zona)
     return round(count / area_km2, 2)
 
 #comparación de densidad entre dos zonas
-def q4_compare(zone_a: str, zone_b: str, confidence_min: float = 0.0):
+def q4_compare(zone_a, zone_b, confidence_min):
 
     time.sleep(0.5)  # simular procesamiento
     da = q3_density(zone_a, confidence_min)
@@ -106,7 +106,7 @@ def q4_compare(zone_a: str, zone_b: str, confidence_min: float = 0.0):
     }
 
 #Distribución de confianza en una zona
-def q5_confidence_dist(zone_id: str, bins: int = 5):
+def q5_confidence_dist(zone_id, bins: int = 5):
 
     scores = []
     for i in range(df.height):
