@@ -7,8 +7,8 @@ import json
 # URL del servicio de respuestas (puedes cambiarla con variable de entorno)
 RESPUESTAS_URL = os.getenv("RESPUESTAS_URL", "http://cache:8000")
 
-def comuna (numero):   # CORREGIDO: ahora usa el parámetro 'numero' correctamente
-    match numero:      # antes estaba mal escrito 'numeroProvincia' dentro del match
+def comuna (numero):   
+    match numero:      
         case 1:
             provincia = "Providencia"
         case 2:
@@ -33,7 +33,6 @@ def enviar_query(peticion, provincia, confianza, provincia2=None):
         response = requests.post(f"{RESPUESTAS_URL}/query", json=payload, timeout=30)
         if response.status_code == 200:
             data = response.json()
-            # Formatea el JSON con indentación (2 espacios)
             pretty_json = json.dumps(data, indent=2, ensure_ascii=False)
             print(f"  [HTTP] Respuesta {response.status_code}:\n{pretty_json}")
         else:
@@ -78,7 +77,7 @@ if opcion == 1:
                 enviar_query(3, provincia, confianza)
             case 4:
                 #Obtenemos la segunda comuna
-                numeroProvincia2 = np.random.randint(1, 6)   # CAMBIADO: nombre diferente para no pisar la variable
+                numeroProvincia2 = np.random.randint(1, 6) 
                 provincia2 = comuna (numeroProvincia2)
                 print(f"Preguntando Q4, provincia: {provincia}, provincia 2 {provincia2} nivel de confianza: {confianza}")
                 enviar_query(4, provincia, confianza, provincia2)
@@ -122,7 +121,7 @@ elif opcion == 2:
                 enviar_query(3, provincia, confianza)
             case 4:
                 #Obtenemos la segunda comuna
-                numeroProvincia2 = np.random.randint(1, 6)   # CAMBIADO: variable nueva
+                numeroProvincia2 = np.random.randint(1, 6)  
                 provincia2 = comuna (numeroProvincia2)
                 print(f"Preguntando Q4, provincia: {provincia}, provincia 2 {provincia2} nivel de confianza: {confianza}")
                 enviar_query(4, provincia, confianza, provincia2)

@@ -5,8 +5,8 @@ from fastapi import FastAPI, Body
 
 app = FastAPI()
 df = pl.read_csv("967_buildings.csv")
-print("Columnas:", df.columns)
-print("Total filas:", df.height)
+#print("Columnas:", df.columns)
+#print("Total filas:", df.height)
 
 def zonaGeografica(longitud, latitud):
     # Providencia
@@ -47,7 +47,7 @@ def areaZonaGeografica(zona):
         return  0   
 
 #Conteo de edificios en una zona
-def q1Conteo(zona: str, confidence_min: float = 0.0) -> int:
+def q1Conteo(zona: str, confidence_min: float = 0.0):
     contador = 0
     for i in range(df.height):
         fila = df.row(i)
@@ -60,7 +60,7 @@ def q1Conteo(zona: str, confidence_min: float = 0.0) -> int:
     return contador
 
 #área promedio y área total de edificaciones
-def q2Area(zona: str, confidence_min: float = 0.0) -> dict:
+def q2Area(zona: str, confidence_min: float = 0.0):
     time.sleep(0.5)  # simula procesamiento
     total_area = 0.0
     contador = 0
@@ -86,15 +86,15 @@ def q2Area(zona: str, confidence_min: float = 0.0) -> dict:
             "n": contador
         }
 
-#Densidad de edificaciones por km²
-def q3_density(zona: str, confidence_min: float = 0.0) -> float:
-    time.sleep(0.5)  # simular procesamiento
+#Densidad de edificaciones por km
+def q3_density(zona: str, confidence_min: float = 0.0):
+    time.sleep(0.5) 
     count = q1Conteo(zona, confidence_min)
     area_km2 = areaZonaGeografica(zona)
     return round(count / area_km2, 2)
 
 #comparación de densidad entre dos zonas
-def q4_compare(zone_a: str, zone_b: str, confidence_min: float = 0.0) -> dict:
+def q4_compare(zone_a: str, zone_b: str, confidence_min: float = 0.0):
 
     time.sleep(0.5)  # simular procesamiento
     da = q3_density(zone_a, confidence_min)
@@ -107,7 +107,7 @@ def q4_compare(zone_a: str, zone_b: str, confidence_min: float = 0.0) -> dict:
     }
 
 #Distribución de confianza en una zona
-def q5_confidence_dist(zone_id: str, bins: int = 5) -> list:
+def q5_confidence_dist(zone_id: str, bins: int = 5):
 
     scores = []
     for i in range(df.height):
@@ -120,11 +120,8 @@ def q5_confidence_dist(zone_id: str, bins: int = 5) -> list:
         if zona_actual != zone_id:
             continue
         
-        # Como conf es float, solo verificamos que no sea None y esté en [0,1]
-        if 0.0 <= conf <= 1.0:
-            scores.append(conf)
     
-    # 2. Construir histograma manualmente
+    # Construir histograma manualmente
     edges = [i / bins for i in range(bins + 1)]
     counts = [0] * bins
     
@@ -185,7 +182,7 @@ async def enviar_query(query: dict = Body()):
 
 #print("Conteo en Pudahuel (confianza >= 0.5):", q1Conteo("Pudahuel", 0.5))
 #print("Áreas en Pudahuel (confianza >= 0.5):", q2Area("", 0.5))
-print("Densidad en Pudahuel:", q3_density("Providencia", 0.5))
-dist = q5_confidence_dist("Pudahuel", bins=5)
-for d in dist:
-    print(f"Bucket {d['bucket']}: {d['min']}-{d['max']} -> {d['count']} edificios")
+#print("Densidad en Pudahuel:", q3_density("Providencia", 0.5))
+#dist = q5_confidence_dist("Pudahuel", bins=5)
+#for d in dist:
+#    print(f"Bucket {d['bucket']}: {d['min']}-{d['max']} -> {d['count']} edificios")
