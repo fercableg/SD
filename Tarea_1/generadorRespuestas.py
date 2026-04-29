@@ -1,6 +1,5 @@
 import polars as pl
 import time
-import requests
 from fastapi import FastAPI, Body
 
 app = FastAPI()
