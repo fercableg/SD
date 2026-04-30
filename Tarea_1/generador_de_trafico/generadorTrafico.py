@@ -1,27 +1,21 @@
 import numpy as np
-import time
-import requests
+import asyncio
+import aiohttp
 import os
 import json
+import time
 
-# URL del servicio de respuestas (puedes cambiarla con variable de entorno)
-RESPUESTAS_URL = os.getenv("RESPUESTAS_URL", "http://cache:8000")
+RESPUESTAS_URL = os.getenv("RESPUESTAS_URL", "http://localhost:8000")
 
-def comuna (numero):   
-    match numero:      
-        case 1:
-            provincia = "Providencia"
-        case 2:
-            provincia = "Las Condes"
-        case 3:
-            provincia = "Maipú"
-        case 4:
-            provincia = "Santiago Centro"
-        case 5:
-            provincia = "Pudahuel"
-    return provincia
+def comuna(numero):
+    match numero:
+        case 1: return "Providencia"
+        case 2: return "Las Condes"
+        case 3: return "Maipú"
+        case 4: return "Santiago Centro"
+        case 5: return "Pudahuel"
 
-def enviar_query(peticion, provincia, confianza, provincia2=None):
+async def enviar_query(session, peticion, provincia, confianza, provincia2=None):
     payload = {
         "tipo": f"Q{peticion}",
         "provincia": provincia,
@@ -30,103 +24,56 @@ def enviar_query(peticion, provincia, confianza, provincia2=None):
     if provincia2:
         payload["provincia2"] = provincia2
     try:
-        response = requests.post(f"{RESPUESTAS_URL}/query", json=payload, timeout=30)
-        if response.status_code == 200:
-            data = response.json()
+        async with session.post(f"{RESPUESTAS_URL}/query", json=payload) as response:
+            data = await response.json()
             pretty_json = json.dumps(data, indent=2, ensure_ascii=False)
-            print(f"  [HTTP] Respuesta {response.status_code}:\n{pretty_json}")
-        else:
-            print(f"  [HTTP] Error {response.status_code}: {response.text}")
+            print(f"  [HTTP] Respuesta {response.status}:\n{pretty_json}")
     except Exception as e:
         print(f"  [ERROR] No se pudo enviar: {e}")
-"""
-Generador de Tráfico: Simula solicitudes de empresas de reparto y logística que consultan zonas de Santia-
-go. Genera consultas automáticamente siguiendo dos distribuciones de tasa de arribo, las cuales son la Ley
-de potencia (Zipf) y distribución uniforme respectivamente. Cada consulta incluye el tipo de operación
-(Q1–Q5), la zona geográfica (bounding box) y los parámetros asociados. Las consultas son completamente
-sintéticas: se construyen a partir de las zonas predefinidas y los parámetros del dataset, sin interacción
-con una base de datos externa.
-"""
 
-opcion = int(input("¿Qué distribución? 1. Uniforme   2. Zipf: "))
+def generarQuery(opcion):
+    alpha = 2.0
 
-if opcion == 1:
-    print("Generando peticiones con distribucion uniforme")
-    
-    while True:
-        #Calcular un numero para determinar la query
-        peticion = np.random.randint(1, 6)
-        #Calcular un numero para determinar la provincia o comuna
-        numeroProvincia = np.random.randint(1, 6)
-        
-        provincia = comuna (numeroProvincia)
-
-        #Crear el decimal del nivel de confianza
-        confianza = np.random. randint(1, 10)/10
-
-        #Match para crear las peticiones
-        match peticion:
-            case 1:     
-                print(f"Preguntando Q1, provincia: {provincia}, nivel de confianza: {confianza}")
-                enviar_query(1, provincia, confianza)
-            case 2:
-                print(f"Preguntando Q2, provincia: {provincia}, nivel de confianza: {confianza}")
-                enviar_query(2, provincia, confianza)
-            case 3:
-                print(f"Preguntando Q3, provincia: {provincia}, nivel de confianza: {confianza}")
-                enviar_query(3, provincia, confianza)
-            case 4:
-                #Obtenemos la segunda comuna
-                numeroProvincia2 = np.random.randint(1, 6) 
-                provincia2 = comuna (numeroProvincia2)
-                print(f"Preguntando Q4, provincia: {provincia}, provincia 2 {provincia2} nivel de confianza: {confianza}")
-                enviar_query(4, provincia, confianza, provincia2)
-            case 5:
-                print(f"Preguntando Q5, provincia: {provincia}, nivel de confianza: {confianza}")
-                enviar_query(5, provincia, confianza)
-
-        time.sleep(5) 
-
-elif opcion == 2:
-   
-    print("Generando peticiones: tipo de consulta Zipf, provincia y confianza uniformes")
-    #Este alpha nos determina que tan empinada es la grafica zipf, osea que tanto se repiten las consultas
-    alpha = 2.0 
-
-    #Función para generar entre 1 y 5 con zipf
     def zipf():
         while True:
             x = np.random.zipf(alpha)
             if 1 <= x <= 5:
                 return x
 
-    while True:
-        peticion = zipf()
-        #Calcular un numero para determinar la provincia o comuna
-        numeroProvincia = np.random.randint(1, 6)
-        #match para determinar la comuna en base al numero obtenido
-        provincia = comuna(numeroProvincia)
-        confianza = np.random. randint(1, 10)/10
+    if opcion == 1:
+        peticion = np.random.randint(1, 6)       # uniforme
+    else:
+        peticion = zipf()                         # zipf
 
-        #Match para crear las peticiones
-        match peticion:
-            case 1:     
-                print(f"Preguntando Q1, provincia: {provincia}, nivel de confianza: {confianza}")
-                enviar_query(1, provincia, confianza)
-            case 2:
-                print(f"Preguntando Q2, provincia: {provincia}, nivel de confianza: {confianza}")
-                enviar_query(2, provincia, confianza)
-            case 3:
-                print(f"Preguntando Q3, provincia: {provincia}, nivel de confianza: {confianza}")
-                enviar_query(3, provincia, confianza)
-            case 4:
-                #Obtenemos la segunda comuna
-                numeroProvincia2 = np.random.randint(1, 6)  
-                provincia2 = comuna (numeroProvincia2)
-                print(f"Preguntando Q4, provincia: {provincia}, provincia 2 {provincia2} nivel de confianza: {confianza}")
-                enviar_query(4, provincia, confianza, provincia2)
-            case 5:
-                print(f"Preguntando Q5, provincia: {provincia}, nivel de confianza: {confianza}")
-                enviar_query(5, provincia, confianza)
+    numeroProvincia = np.random.randint(1, 6)
+    provincia = comuna(numeroProvincia)
+    confianza = np.random.randint(1, 10) / 10
+    provincia2 = None
 
-        time.sleep(5)
+    if peticion == 4:
+        provincia2 = comuna(np.random.randint(1, 6))
+
+    return peticion, provincia, confianza, provincia2
+
+async def enviar_N_queries(nQuerys, opcion):
+    tiempoInicial = time.time()
+
+    # Create all tasks and send them all at once
+    async with aiohttp.ClientSession() as session:
+        tareas = []
+        for _ in range(nQuerys):
+            peticion, provincia, confianza, provincia2 = generarQuery(opcion)
+            tarea = enviar_query(session, peticion, provincia, confianza, provincia2)
+            tareas.append(tarea)
+
+        await asyncio.gather(*tareas)  # ← sends ALL queries simultaneously
+
+    tiempoFinal = time.time()
+    total = round(tiempoFinal - tiempoInicial, 2)
+    throughput = round(nQuerys / total, 2)
+    print(f"\n {nQuerys} queries enviadas en {total} seg → {throughput} queries/seg")
+
+opcion = int(input("¿Qué distribución? 1. Uniforme  2. Zipf: "))
+nQuerys = int(input("¿Cuántas queries quiere enviar? N: "))
+
+asyncio.run(enviar_N_queries(nQuerys, opcion))
