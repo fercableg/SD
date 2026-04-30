@@ -1,38 +1,60 @@
 services:
-  test:
+  redis-db:
     image: redis:alpine
-    container_name: test
-    restart: unless-stopped
+    container_name: redis-db
+    # Aqui cambiar el tamaño del cache y la politica de almacenamiento
+    command: >
+      redis-server
+      --maxmemory 50mb
+      --maxmemory-policy allkeys-lfu
     ports:
       - "6379:6379"
-    volumes:
-      - test-data:/data
     networks:
-      - redis-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      retries: 3
-      timeout: 5s
+      - sd-network
 
   redis-insight:
     image: redis/redisinsight:latest
     container_name: redis-insight
-    restart: unless-stopped
     ports:
       - "5540:5540"
-    volumes:
-      - redis-insight-data:/data
     networks:
-      - redis-network
+      - sd-network
     depends_on:
-      - test
+      - redis-db
 
-volumes:
-  test-data:
-    driver: local
-  redis-insight-data:
-    driver: local
+  generador_de_respuestas:
+    build: ./generador_de_respuestas
+    container_name: generador_de_respuestas
+    volumes:
+      - ./967_buildings.csv:/app/967_buildings.csv  # mounts CSV correctly
+    ports:
+      - "8001:8001"
+    networks:
+      - sd-network
+
+  cache:
+    build: ./cache
+    container_name: cache
+    depends_on:
+      - redis-db
+      - generador_de_respuestas
+    ports:
+      - "8000:8000"
+    networks:
+      - sd-network
+
+  generador_de_trafico:
+    build: ./generador_de_trafico
+    container_name: generador_de_trafico
+    depends_on:
+      - cache
+    environment:
+      - RESPUESTAS_URL=http://cache:8000
+    stdin_open: true
+    tty: true
+    networks:
+      - sd-network
 
 networks:
-  redis-network:
+  sd-network:
     driver: bridge
