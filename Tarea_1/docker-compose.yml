@@ -2,10 +2,11 @@ services:
   redis-db:
     image: redis:alpine
     container_name: redis-db
+    # Aqui cambiar el tamaño del cache y la politica de almacenamiento
     command: >
       redis-server
-      --maxmemory 200mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory 50mb
+      --maxmemory-policy allkeys-lfu
     ports:
       - "6379:6379"
     networks:

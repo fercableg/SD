@@ -29,11 +29,11 @@ def generarLlavesCache(query):
 
 def calcularTTL(query_type):
     ttls = {
-        "Q1": 1800,
-        "Q2": 1800,
-        "Q3": 500,
-        "Q4": 500,
-        "Q5": 500
+        "Q1": 5,
+        "Q2": 5,
+        "Q3": 10,
+        "Q4": 15,
+        "Q5": 15
     }
     return ttls.get(query_type, 500)
 
