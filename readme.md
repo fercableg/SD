@@ -117,19 +117,19 @@ Con esto, se da por finalizada la explicación del funcionamiento de la **Tarea 
 
 ---
 
-# 🧪 Tarea 2
+# Tarea 2
 
 _(Pendiente)_
 
 ---
 
-# 🧪 Tarea 3
+# Tarea 3
 
 _(Pendiente)_
 
 ---
 
-# 👥 Integrantes
+# Integrantes
 
 - Fernando Cabrera  
 - Cristopher Vásquez  
