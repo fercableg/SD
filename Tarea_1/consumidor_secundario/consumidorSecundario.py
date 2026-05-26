@@ -4,22 +4,16 @@ import os
 import aiohttp
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer
 
-# Configuración desde variables de entorno (definidas en docker-compose)
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
-TOPIC_PRINCIPAL = os.getenv("TOPIC_PRINCIPAL", "consultas-principal")
 TOPIC_REINTENTO = os.getenv("TOPIC_REINTENTO", "consultas-reintento")
 TOPIC_DLQ = os.getenv("TOPIC_DLQ", "consultas-dlq")
 CACHE_URL = os.getenv("CACHE_URL", "http://cache:8000")
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
-GROUP_ID = os.getenv("GROUP_ID", "grupo-consumidores")
+RETRY_DELAY = int(os.getenv("RETRY_DELAY", "10")) 
+GROUP_ID = os.getenv("GROUP_ID", "grupo-reintentos")
 
 async def procesar_consulta(session, consulta):
-    """
-    Envía la consulta al servicio cache.
-    Retorna True si la respuesta es exitosa (status 2xx).
-    Lanza excepción si hay error de conexión o status no exitoso.
-    """
-    # Extraemos los campos necesarios para el cache (sin metadatos de Kafka)
+    # misma función que en el principal
     payload = {
         "tipo": consulta.get("tipo"),
         "provincia": consulta.get("provincia"),
@@ -27,63 +21,52 @@ async def procesar_consulta(session, consulta):
     }
     if "provincia2" in consulta:
         payload["provincia2"] = consulta["provincia2"]
-
     async with session.post(f"{CACHE_URL}/query", json=payload, timeout=10) as response:
-        if response.status >= 200 and response.status < 300:
+        if response.status < 300:
             return True
-        else:
-            # Errores HTTP se tratan como fallo temporal
-            raise Exception(f"Cache respondió con status {response.status}")
-        
+        raise Exception(f"Cache status {response.status}")
 
-#Funcion principal
-async def consumir():
-    #Creamos el consumidor de kafka
+async def consumir_reintentos():
     consumer = AIOKafkaConsumer(
-        #Le dejamos como topics para acceder la consultas principales 
-        TOPIC_PRINCIPAL,
+        TOPIC_REINTENTO,  # solo reintentos
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         group_id=GROUP_ID,
-        #Con el enable en false se debe hacer un commit de forma manual, se hace para evitar falsos positivos
         enable_auto_commit=False,
         value_deserializer=lambda m: json.loads(m.decode('utf-8'))
     )
-    #Creamos el productor
     producer = AIOKafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         value_serializer=lambda v: json.dumps(v).encode('utf-8')
     )
-    #Iniciamos tanto el consumidor como el productor y se comienza con el bucle de mensajes
     await consumer.start()
     await producer.start()
     async with aiohttp.ClientSession() as session:
         try:
-            #Iteramos de forma asincrona cada mensaje del consumidor
             async for msg in consumer:
-                #Extraemos el id y el num de intentos
                 consulta = msg.value
                 id_unico = consulta.get('id_unico', '?')
                 intentos = consulta.get('intentos', 0)
-                print(f"Mensaje recibido, id: {id_unico} intentos={intentos}")
-
+                print(f"[Reintento] Recibida: {id_unico} intentos={intentos}")
+                
+                # Espera deliberada antes de procesar
+                await asyncio.sleep(RETRY_DELAY)
+                
                 try:
                     exito = await procesar_consulta(session, consulta)
                     if exito:
-                        print(f"Éxito: {id_unico}")
-                        #Confirmamos la consulta
+                        print(f"✅ Reintento exitoso: {id_unico}")
                         await consumer.commit()
                     else:
-                        raise Exception("Falló sin excepción")
+                        raise Exception("Falló")
                 except Exception as e:
-                    #en caso de error aumentamos los intentos y dependiendo si se supera el umbral ocurre cierta cosa
-                    print(f"Error: {e}")
+                    print(f"❌ Error en reintento: {e}")
                     nuevo_intentos = intentos + 1
                     consulta['intentos'] = nuevo_intentos
                     if nuevo_intentos <= MAX_RETRIES:
-                        print(f"Reintento {nuevo_intentos} para {id_unico}, queda {MAX_RETRIES - nuevo_intentos} intentos")
-                        await producer.send(TOPIC_REINTENTO, consulta)
+                        print(f"↻ Reintento {nuevo_intentos} para {id_unico}")
+                        await producer.send(TOPIC_REINTENTO, consulta)  # vuelve a reintento
                     else:
-                        print(f"DLQ: {id_unico}")
+                        print(f"💀 DLQ: {id_unico}")
                         await producer.send(TOPIC_DLQ, consulta)
                     await consumer.commit()
         finally:
@@ -91,4 +74,4 @@ async def consumir():
             await producer.stop()
 
 if __name__ == "__main__":
-    asyncio.run(consumir())
+    asyncio.run(consumir_reintentos())

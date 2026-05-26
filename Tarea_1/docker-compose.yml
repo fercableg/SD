@@ -60,11 +60,31 @@ services:
     networks:
       - sd-network
 
+  # Inicializador de tópicos (se ejecuta una sola vez)
+  init-kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: init-kafka
+    depends_on:
+      - kafka
+    command: >
+      bash -c "
+        echo 'Esperando a que Kafka esté listo...';
+        cub kafka-ready -b kafka:9092 1 30;
+        echo 'Creando tópicos...';
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic consultas-principal --partitions 3 --replication-factor 1;
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic consultas-reintento --partitions 3 --replication-factor 1;
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic consultas-dlq --partitions 3 --replication-factor 1;
+        echo 'Tópicos creados. Saliendo.';
+      "
+    networks:
+      - sd-network
+
   generador_de_trafico:
     build: ./generador_de_trafico
     container_name: generador_de_trafico
     depends_on:
       - kafka
+      - init-kafka
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_TOPIC: consultas-principal
@@ -79,6 +99,7 @@ services:
       - kafka
       - cache
       - generador_de_respuestas
+      - init-kafka
     command: sh -c "sleep 15 && python consumer.py"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -100,6 +121,30 @@ services:
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    depends_on:
+      - kafka
+    networks:
+      - sd-network
+      
+  consumidor_reintento:
+    build: ./consumidor_secundario
+    depends_on:
+      - kafka
+      - init-kafka
+    command: sh -c "
+      echo 'Esperando a que Kafka esté accesible...';
+      while ! nc -z kafka 9092; do sleep 2; done;
+      echo 'Kafka está listo. Iniciando consumidor de reintentos...';
+      python consumidorSecundario.py
+      "
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TOPIC_REINTENTO: consultas-reintento
+      TOPIC_DLQ: consultas-dlq
+      CACHE_URL: http://cache:8000
+      MAX_RETRIES: 3
+      RETRY_DELAY: 10
+      GROUP_ID: grupo-reintentos
     networks:
       - sd-network
 
