@@ -2,10 +2,7 @@ services:
   redis-db:
     image: redis:alpine
     container_name: redis-db
-    command: >
-      redis-server
-      --maxmemory 200mb
-      --maxmemory-policy allkeys-lru
+    command: redis-server --maxmemory 200mb --maxmemory-policy allkeys-lru
     ports:
       - "6379:6379"
     networks:
@@ -25,7 +22,7 @@ services:
     build: ./generador_de_respuestas
     container_name: generador_de_respuestas
     volumes:
-      - ./967_buildings.csv:/app/967_buildings.csv  # mounts CSV correctly
+      - ./967_buildings.csv:/app/967_buildings.csv
     ports:
       - "8001:8001"
     networks:
@@ -42,15 +39,67 @@ services:
     networks:
       - sd-network
 
+  # Kafka en modo KRaft (sin Zookeeper)
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qk"
+    networks:
+      - sd-network
+
   generador_de_trafico:
     build: ./generador_de_trafico
     container_name: generador_de_trafico
     depends_on:
-      - cache
+      - kafka
     environment:
-      - RESPUESTAS_URL=http://cache:8000
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: consultas-principal
     stdin_open: true
     tty: true
+    networks:
+      - sd-network
+
+  consumidor:
+    build: ./consumidor
+    depends_on:
+      - kafka
+      - cache
+      - generador_de_respuestas
+    command: sh -c "sleep 15 && python consumer.py"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CACHE_URL: http://cache:8000
+      RESPUESTAS_URL: http://generador_de_respuestas:8001
+      TOPIC_PRINCIPAL: consultas-principal
+      TOPIC_REINTENTO: consultas-reintento
+      TOPIC_DLQ: consultas-dlq
+      MAX_RETRIES: 3
+      GROUP_ID: grupo-consumidores
+    networks:
+      - sd-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
     networks:
       - sd-network
 
