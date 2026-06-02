@@ -93,25 +93,6 @@ services:
     networks:
       - sd-network
 
-  consumidor:
-    build: ./consumidor
-    depends_on:
-      - kafka
-      - cache
-      - generador_de_respuestas
-      - init-kafka
-    command: sh -c "sleep 15 && python consumer.py"
-    environment:
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      CACHE_URL: http://cache:8000
-      RESPUESTAS_URL: http://generador_de_respuestas:8001
-      TOPIC_PRINCIPAL: consultas-principal
-      TOPIC_REINTENTO: consultas-reintento
-      TOPIC_DLQ: consultas-dlq
-      MAX_RETRIES: 3
-      GROUP_ID: grupo-consumidores
-    networks:
-      - sd-network
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -125,24 +106,44 @@ services:
       - kafka
     networks:
       - sd-network
-      
+
+  consumidor:
+    build: ./consumidor
+    depends_on:
+      - kafka
+      - cache
+      - generador_de_respuestas
+      - init-kafka
+    command: python -u consumer.py
+    environment:
+      PYTHONUNBUFFERED: 1
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CACHE_URL: http://cache:8000
+      TOPIC_PRINCIPAL: consultas-principal
+      TOPIC_REINTENTO: consultas-reintento
+      MAX_RETRIES: 3
+      GROUP_ID: grupo-consumidores
+    networks:
+      - sd-network
+
   consumidor_reintento:
     build: ./consumidor_secundario
     depends_on:
       - kafka
       - init-kafka
-    command: sh -c "sleep 15 && python consumidorSecundario.py"
+    command: python -u consumidorSecundario.py
     environment:
+      PYTHONUNBUFFERED: 1
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      CACHE_URL: http://cache:8000
       TOPIC_REINTENTO: consultas-reintento
       TOPIC_DLQ: consultas-dlq
-      CACHE_URL: http://cache:8000
       MAX_RETRIES: 3
-      RETRY_DELAY: 10
+      RETRY_DELAY: 2
       GROUP_ID: grupo-reintentos
     networks:
       - sd-network
-    
+
 networks:
   sd-network:
     driver: bridge
