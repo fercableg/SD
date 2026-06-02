@@ -68,12 +68,12 @@ services:
       - kafka
     command: >
       bash -c "
-        echo 'Esperando a que Kafka esté listo...';
+        echo 'Esperando a que Kafka esté listo...';fe
         cub kafka-ready -b kafka:9092 1 30;
         echo 'Creando tópicos...';
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic consultas-principal --partitions 3 --replication-factor 1;
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic consultas-reintento --partitions 3 --replication-factor 1;
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic consultas-dlq --partitions 3 --replication-factor 1;
+        kafka-topics --bootstrap-servecar kafka:9092 --create --if-not-exists --topic consultas-dlq --partitions 3 --replication-factor 1;
         echo 'Tópicos creados. Saliendo.';
       "
     networks:
@@ -131,12 +131,7 @@ services:
     depends_on:
       - kafka
       - init-kafka
-    command: sh -c "
-      echo 'Esperando a que Kafka esté accesible...';
-      while ! nc -z kafka 9092; do sleep 2; done;
-      echo 'Kafka está listo. Iniciando consumidor de reintentos...';
-      python consumidorSecundario.py
-      "
+    command: sh -c "sleep 15 && python consumidorSecundario.py"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       TOPIC_REINTENTO: consultas-reintento
@@ -147,7 +142,7 @@ services:
       GROUP_ID: grupo-reintentos
     networks:
       - sd-network
-
+    
 networks:
   sd-network:
     driver: bridge
