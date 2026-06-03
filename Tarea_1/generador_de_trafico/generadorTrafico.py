@@ -43,7 +43,9 @@ def generar_query():
 
 async def crear_topic_si_no_existe():
     admin = AIOKafkaAdminClient(bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS)
+
     await admin.start()
+
     try:
         topics = await admin.list_topics()
         if KAFKA_TOPIC not in topics:
@@ -72,7 +74,9 @@ async def publicar(producer):
 
 async def main():
     await crear_topic_si_no_existe()
+    
     print(f"Burst mode: sending {TOTAL} messages with concurrency {CONCURRENCIA}")
+    
     producer = AIOKafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
         value_serializer=lambda v: json.dumps(v).encode('utf-8'),
@@ -80,25 +84,39 @@ async def main():
         max_batch_size=16384,
         linger_ms=5
     )
+
     await producer.start()
-    semaphore = asyncio.Semaphore(CONCURRENCIA)
-    enviadas = 0
+
+    semaforo = asyncio.Semaphore(CONCURRENCIA)
+    queries_enviadas = 0
     start = time.time()
 
     async def enviar():
-        nonlocal enviadas
-        async with semaphore:
+        nonlocal queries_enviadas
+
+        async with semaforo:
             await publicar(producer)
-            enviadas += 1
-            if enviadas % 1000 == 0:
-                elapsed = time.time() - start
-                rate = enviadas / elapsed if elapsed > 0 else 0
-                print(f"Progress: {enviadas}/{TOTAL} (rate: {rate:.0f} msg/s)")
+
+            queries_enviadas += 1
+
+            if queries_enviadas % 1000 == 0:
+                tiempo_transcurrido = time.time() - start
+
+                if tiempo_transcurrido > 0:
+                    rate_de_queries = queries_enviadas / tiempo_transcurrido 
+                else:
+                    rate_de_queries = 0
+
+            print(f"El total de queries enviadas son: {queries_enviadas}/{TOTAL}. Promedio de queries: {rate_de_queries:.0f} queries/s)")
 
     tareas = [enviar() for _ in range(TOTAL)]
+    
     await asyncio.gather(*tareas)
-    elapsed = time.time() - start
-    print(f"\n[OK] {TOTAL} messages sent in {elapsed:.2f}s. Average rate: {TOTAL/elapsed:.0f} msg/s")
+
+    tiempo_transcurrido = time.time() - start
+
+    print(f"\n {TOTAL} de queries enviadas en {tiempo_transcurrido:.2f}s. Promedio de queries: {TOTAL/tiempo_transcurrido:.0f} queries/s")
+
     await producer.stop()
 
 if __name__ == "__main__":
