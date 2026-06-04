@@ -254,7 +254,8 @@ Ahora ingresa tu contraseña, luego se desplegara un monitoreo dentro del sistem
 | Recovery Time | Tiempo transcurrido (en segundos) necesario para procesar y vaciar por completo la cola tras un pico o falla |
 ---
 
-> [!WARNING] Una vez hayas realizado el monitoreo correspondiente, debes eliminar este archivo, ya que si ejecutas nuevamente este comando este funcionara correctamente, el cual lo puedes hacer de la siguente forma:
+> [!WARNING]
+> Una vez hayas realizado el monitoreo correspondiente, debes eliminar este archivo, ya que si ejecutas nuevamente este comando este funcionara correctamente, el cual lo puedes hacer de la siguente forma:
 >
 > ```bash
 > cd Metricas2plano
