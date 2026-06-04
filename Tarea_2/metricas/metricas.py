@@ -56,8 +56,29 @@ def procesarMetricas():
         info = db.info("stats")
         evicted = info.get("evicted_keys", 0)
         return evicted    
-    
+
     evictions = obtenerEvictions()
+
+    if "type" in df.columns:
+        retry_sent = df.filter(pl.col("type") == "retry_sent").height
+        recovery_success = df.filter(pl.col("type") == "recovery_success").height
+        dlq = df.filter(pl.col("type") == "dlq").height
+    else:
+        retry_sent = recovery_success = dlq = 0
+
+    # Total de consultas enviadas originalmente = Consultas que llegaron a la caché + las que se perdieron en la DLQ
+    totalGeneradas = totalDF + dlq
+
+    if totalGeneradas > 0:
+        retryRate = retry_sent / totalGeneradas
+        dlqRate = dlq / totalGeneradas
+    else:
+        retryRate = dlqRate = 0
+
+    if retry_sent > 0:
+        recoveryRate = recovery_success / retry_sent
+    else:
+        recoveryRate = 0
     
     print("--- Metricas por CLI ---")
     print(f"Total de Consultas: {totalDF}")
@@ -67,6 +88,11 @@ def procesarMetricas():
     print(f"Latencia en el Percentil 95: {percentil95:.2f} ms")
     print(f"Cache Efficiency: {cacheEfficiency:.2f}")
     print(f"Total Evictions: {evictions:.2f}")
+    print("\n--- Metricas de Kafka ---")
+    print(f"Total de Reintentos Ejecutados: {retry_sent}")
+    print(f"Retry Rate: {retryRate:.2%}")
+    print(f"Recovery Rate: {recoveryRate:.2%}")
+    print(f"DLQ Rate: {dlqRate:.2%}")
 
     # Exportar a un CSV (pal informe xd)
     df.write_csv("metricas.csv")

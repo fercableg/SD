@@ -55,14 +55,53 @@ def iniciar_monitoreo():
             tiempo_inicial = time.time()
             lag_principal = get_lag("grupo-consumidores")
             lag_reintentos = get_lag("grupo-reintentos")
-            hora_legible = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+            hora_legible = datetime.fromtimestamp(tiempo_inicial).strftime("%H:%M:%S")
 
             print(f"[{hora_legible}]  Principal: {lag_principal}  |  Reintentos: {lag_reintentos}")
             guardar_csv(tiempo_inicial, lag_principal, lag_reintentos)
 
             time.sleep(INTERVALO)
     except KeyboardInterrupt:
-        print("\nMonitoreo detenido. Datos guardados en el archivo", ARCHIVO_CSV)
+        print(f"\nMonitoreo detenido. Datos guardados en el archivo {ARCHIVO_CSV}")
+        print("\nCalculando métricas de cola...")
+        
+        try:
+            with open(ARCHIVO_CSV, mode='r') as f:
+                lector = csv.DictReader(f)
+                filas = list(lector)
+                
+                if not filas:
+                    return
+
+                # Convertir a tipos numéricos
+                for fila in filas:
+                    fila['timestamp'] = float(fila['timestamp'])
+                    fila['lag_principal'] = int(fila['lag_principal'])
+
+                # Encontrar el Peak (Backlog Size)
+                max_lag_dict = max(filas, key=lambda x: x['lag_principal'])
+                peak_lag = max_lag_dict['lag_principal']
+                tiempo_peak = max_lag_dict['timestamp']
+
+                print(f"Backlog Size (Peak): {peak_lag} mensajes")
+
+                # Calcular Recovery Time (Tiempo desde el peak hasta que el lag vuelve a 0)
+                if peak_lag > 0:
+                    tiempo_recuperacion = 0
+                    for fila in filas:
+                        if fila['timestamp'] > tiempo_peak and fila['lag_principal'] == 0:
+                            tiempo_recuperacion = fila['timestamp'] - tiempo_peak
+                            break
+                    
+                    if tiempo_recuperacion > 0:
+                        print(f"Recovery Time: {tiempo_recuperacion:.2f} segundos")
+                    else:
+                        print("Recovery Time: El lag nunca volvió a 0 durante el monitoreo.")
+                else:
+                    print("Recovery Time: 0 segundos")
+                    
+        except Exception as error:
+            print(f"No se pudieron calcular las métricas finales: {error}")
 
 if __name__ == "__main__":
     iniciar_monitoreo()

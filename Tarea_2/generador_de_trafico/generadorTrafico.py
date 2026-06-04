@@ -11,7 +11,7 @@ from aiokafka.admin import AIOKafkaAdminClient, NewTopic
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "consultas-principal")
 TOTAL = int(os.getenv("TOTAL_MENSAJES", "1000"))        # CAMBIADO A 1000
-CONCURRENCIA = int(os.getenv("CONCURRENCIA", "1000"))
+CONCURRENCIA = int(os.getenv("CONCURRENCIA", "10000"))
 DISTRIBUCION = int(os.getenv("DISTRIBUCION", "1"))  # 1=Uniforme, 2=Zipf
 
 def comuna(numero):
@@ -75,7 +75,7 @@ async def publicar(producer):
 async def main():
     await crear_topic_si_no_existe()
     
-    print(f"Burst mode: sending {TOTAL} messages with concurrency {CONCURRENCIA}")
+    print(f"Burst mode, {TOTAL} mensajes con {CONCURRENCIA} concurrencia")
     
     producer = AIOKafkaProducer(
         bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
@@ -107,7 +107,7 @@ async def main():
                 else:
                     rate_de_queries = 0
 
-            print(f"El total de queries enviadas son: {queries_enviadas}/{TOTAL}. Promedio de queries: {rate_de_queries:.0f} queries/s)")
+                print(f"El total de queries enviadas son: {queries_enviadas}/{TOTAL}. Promedio de queries: {rate_de_queries:.0f} queries/s)")
 
     tareas = [enviar() for _ in range(TOTAL)]
     
