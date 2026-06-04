@@ -119,9 +119,151 @@ Con esto, se da por finalizada la explicación del funcionamiento de la **Tarea 
 
 # Tarea 2
 
-_(Pendiente)_
+## Despliegue del sistema
+
+Primero despliega el sistema a nivel local, desde una consola ejecuta:
+
+```bash
+git clone https://github.com/fercableg/SD.git
+```
+
+Desde la carpeta `Tarea_2`, levanta todos los servicios:
+
+```bash
+cd Tarea_2
+docker-compose up --build
+```
+
+Esto iniciará automáticamente los siguientes contenedores:
+- `redis-db` — Base de datos caché
+- `kafka` — Broker de mensajería
+- `init-kafka` — Inicialización de tópicos
+- `generador_de_respuestas` — Procesador de consultas
+- `cache` — Sistema de caché
+- `consumidor` — Consumidor principal de Kafka
+- `consumidor_reintento` — Consumidor del tópico de reintentos
+- `kafka-ui` — Interfaz gráfica de Kafka
+
+Para verificar si la conexión con Kafka se ha ejecutado correctamente, ejecuta en terminales diferentes los siguentes comandos
+
+```bash
+docker-compose logs -f cosumidor
+docker-compose logs -f cosumidor_reintento
+```
 
 ---
+
+## Generación de consultas
+
+Una vez levantado el sistema, en una nueva terminal ejecuta el generador de tráfico:
+
+```bash
+docker-compose run --rm -e TOTAL_MENSAJES=N -e CONCURRENCIA=M generador_de_trafico python generadorTrafico.py
+```
+Donde "N" corresponde a la cantidad de consultas a enviar y "M" corresponde a los milisegundos en los cuales se envian estas consultas (Se recomienda colocar multiplos de 1000 para trabajar el segundos).
+
+El generador publicará las consultas directamente en el tópico `consultas-principal` de Kafka.
+A diferencia de la Tarea 1, el generador **no se comunica directamente con el caché** — Kafka
+actúa como intermediario.
+
+---
+
+## Aumentar consumidores
+
+Para aumentar el número de consumidores procesando consultas en paralelo, ejecuta el siguente comando:
+
+```bash
+docker-compose up --scale consumidor=K
+```
+
+Donde "K" es el numero de consumidores máximos que soporta el sistema. Por ejemplo, si colocas "K=4", habrán solo cuatro consumidores funcionando correctamente. 
+
+---
+
+## Simulación de falla temporal
+
+Para simular una caída del Generador de Respuestas mientras el sistema está en funcionamiento, ejecuta:
+
+```bash
+docker stop generador_de_respuestas
+```
+
+Para volver a levantar el servicio, ejecuta:
+
+```bash
+docker start generador_de_respuestas
+```
+
+---
+
+## Monitoreo con Kafka UI
+
+En un navegador a conveniencia, dirígete a:
+
+http://localhost:8080/
+
+Desde aquí puedes visualizar en tiempo real:
+- **Backlog** de mensajes por tópico.
+- Mensajes en `consultas-reintento` y `consultas-dlq`.
+- Consumidores activos y Throughput de mensajes por segundo.
+
+---
+
+## Evaluación de métricas
+
+Crea un entorno virtual de Python3 e instala las dependencias necesarias para la ejecución correspondiente:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install redis polars kafka-python
+```
+
+Luego para visualizar la mayoría de las métricas:
+
+```bash
+cd metricas
+python3 metricas.py
+```
+
+Donde al ejecutar el comando, se guarda un archivo .csv con todo los parametros que se muestran a continuación:
+
+| Métrica | Descripción |
+|---|---|
+| Hit Rate | Porcentaje de consultas respondidas desde caché |
+| Throughput | Consultas procesadas por segundo |
+| Latencia p50/p95 | Percentiles de latencia en tiempo de respuesta |
+| Cache Efficiency | Eficiencia comparada entre hits y misses en el caché |
+| Total Evictions | Keys eliminadas por política de remoción |
+|---|---|
+| Total de Reintentos | Cantidad total de consultas derivadas al flujo de *fallback* tras un fallo inicial |
+| Retry Rate | Porcentaje de consultas reenviadas a los tópicos de reintento |
+| Recovery Rate | Porcentaje de consultas recuperadas exitosamente tras fallos temporales |
+| DLQ Rate | Porcentaje de consultas enviadas a la Dead Letter Queue |
+
+Para visualizar el resto de las metricas, como el Backlog y el Recovery time, en otra consola ejecuta:
+
+```bash
+cd Metricas2plano
+python3 metricasKafka.py
+```
+
+Ahora ingresa tu contraseña, luego se desplegara un monitoreo dentro del sistema el cual registra como "Lag", junto con los topicos de los consumidores principa y de reintento. Para finalizar este proceso, ejecuta en tu teclado "Ctrl+C", donde se guarda un archivo .csv con todo el monitoreo realizado: 
+
+| Métrica | Descripción |
+|---|---|
+| Backlog Size (Peak) | Cantidad máxima de mensajes pendientes (Lag) acumulados en la cola de Kafka durante el experimento |
+| Recovery Time | Tiempo transcurrido (en segundos) necesario para procesar y vaciar por completo la cola tras un pico o falla |
+---
+
+Atención, una vez hayas realizado el monitoreo correspondiente, debes eliminar este archivo, ya que si ejecutas nuevamente este comando este funcionara correctamente, el cual lo puedes hacer de la siguente forma:
+
+```bash
+cd Metricas2plano
+rm lag_metricas.csv
+```
+
+Con esto, finaliza la Tarea 2 :3.
 
 # Tarea 3
 
