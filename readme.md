@@ -112,7 +112,6 @@ python3 metricas.py
 
 ---
 
-
 Con esto, se da por finalizada la explicación del funcionamiento de la **Tarea 1**.
 
 ---
@@ -144,13 +143,13 @@ Esto iniciará automáticamente los siguientes contenedores:
 - `consumidor_reintento` — Consumidor del tópico de reintentos
 - `kafka-ui` — Interfaz gráfica de Kafka
 
-Para verificar si la conexión con Kafka se ha ejecutado correctamente, ejecuta en terminales diferentes los siguentes comandos
-
-```bash
-docker-compose logs -f cosumidor
-docker-compose logs -f cosumidor_reintento
-```
-
+> [!TIP]
+> Para verificar si la conexión con Kafka se ha ejecutado correctamente, abre dos terminales diferentes y ejecuta los siguientes comandos para observar los logs en tiempo real:
+> 
+> ```bash
+> docker-compose logs -f consumidor
+> docker-compose logs -f consumidor_reintento
+> ```
 ---
 
 ## Generación de consultas
@@ -263,7 +262,7 @@ cd Metricas2plano
 rm lag_metricas.csv
 ```
 
-Con esto, finaliza la Tarea 2 :3.
+Con esto, se da por finalizada la explicación del funcionamiento de la **Tarea 2**.
 
 # Tarea 3
 
