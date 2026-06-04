@@ -234,7 +234,6 @@ Donde al ejecutar el comando, se guarda un archivo .csv con todo los parametros 
 | Latencia p50/p95 | Percentiles de latencia en tiempo de respuesta |
 | Cache Efficiency | Eficiencia comparada entre hits y misses en el caché |
 | Total Evictions | Keys eliminadas por política de remoción |
-|---|---|
 | Total de Reintentos | Cantidad total de consultas derivadas al flujo de *fallback* tras un fallo inicial |
 | Retry Rate | Porcentaje de consultas reenviadas a los tópicos de reintento |
 | Recovery Rate | Porcentaje de consultas recuperadas exitosamente tras fallos temporales |
@@ -255,12 +254,12 @@ Ahora ingresa tu contraseña, luego se desplegara un monitoreo dentro del sistem
 | Recovery Time | Tiempo transcurrido (en segundos) necesario para procesar y vaciar por completo la cola tras un pico o falla |
 ---
 
-Atención, una vez hayas realizado el monitoreo correspondiente, debes eliminar este archivo, ya que si ejecutas nuevamente este comando este funcionara correctamente, el cual lo puedes hacer de la siguente forma:
-
-```bash
-cd Metricas2plano
-rm lag_metricas.csv
-```
+> [!WARNING] Una vez hayas realizado el monitoreo correspondiente, debes eliminar este archivo, ya que si ejecutas nuevamente este comando este funcionara correctamente, el cual lo puedes hacer de la siguente forma:
+>
+> ```bash
+> cd Metricas2plano
+> rm lag_metricas.csv
+> ```
 
 Con esto, se da por finalizada la explicación del funcionamiento de la **Tarea 2**.
 
