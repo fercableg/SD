@@ -1,7 +1,12 @@
 FROM apache/spark:3.5.0
-ENV IVY2_DIR="/tmp/.ivy2"
-RUN mkdir -p $IVY2_DIR && chown -R spark:spark $IVY2_DIR
-USER spark
 ENV PATH="/opt/spark/bin:${PATH}"
+
+
+USER root
+RUN mkdir -p /home/spark/.ivy2 && chown -R spark:spark /home/spark/.ivy2
+
+USER spark
 WORKDIR /opt/spark
-# The entrypoint will be set in docker-compose to run spark-submit
+
+# Copia tu script (ajusta la ruta si es necesario)
+COPY spark_job.py /opt/spark/jobs/

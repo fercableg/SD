@@ -188,10 +188,12 @@ services:
       elasticsearch:
         condition: service_healthy
 
-  # Spark Streaming Job
+    # Spark Streaming Job
   spark:
     build: ./spark_streaming
     container_name: spark
+    ports:
+      - "4040:4040"
     depends_on:
       kafka:
         condition: service_healthy

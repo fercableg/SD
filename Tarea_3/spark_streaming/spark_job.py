@@ -16,13 +16,25 @@ schema = StructType([
 
 def write_batch_to_es(batch_df, batch_id):
     if not batch_df.isEmpty():
-        batch_df.write \
+        # Asegurar que las columnas tengan nombres compatibles con ES (sin caracteres especiales)
+        es_df = batch_df.select(
+            col("window_start").alias("window_start"),
+            col("window_end").alias("window_end"),
+            col("total_attempts"),
+            col("hits"),
+            col("hit_rate"),
+            col("latency_p50"),
+            col("latency_p95"),
+            col("retry_rate")
+        )
+        es_df.write \
             .format("org.elasticsearch.spark.sql") \
             .mode("append") \
             .option("es.resource", "metrics-aggregated") \
             .option("es.nodes", "elasticsearch") \
             .option("es.port", "9200") \
             .option("es.nodes.wan.only", "true") \
+            .option("es.write.operation", "index") \
             .save()
 
 def main():
@@ -34,11 +46,11 @@ def main():
     # Reduce log verbosity
     spark.sparkContext.setLogLevel("WARN")
 
-    # Read from Kafka
+    # Read from Kafka (topic: consultas-principal)
     kafka_df = spark.readStream \
         .format("kafka") \
         .option("kafka.bootstrap.servers", "kafka:9092") \
-        .option("subscribe", "metrics-topic") \
+        .option("subscribe", "consultas-principal") \
         .option("startingOffsets", "latest") \
         .load()
 
@@ -48,7 +60,8 @@ def main():
     ).select("data.*")
 
     # Convert timestamp string to timestamp type
-    processed_df = pyspark_df = processed_df.withColumn(
+    # Nota: se usa parsed_df directamente y se asignan las nuevas columnas
+    processed_df = parsed_df.withColumn(
         "event_time", to_timestamp(col("timestamp"))
     ).withColumn(
         "latency_ms", col("latency_ms").cast("double")
