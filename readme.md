@@ -265,12 +265,54 @@ Ahora ingresa tu contraseña, luego se desplegara un monitoreo dentro del sistem
 Con esto, se da por finalizada la explicación del funcionamiento de la **Tarea 2**.
 
 # Tarea 3
+ 
+## Despliegue del sistema
+ 
+Desde la carpeta `Tarea_3`, levanta todos los servicios con:
+ 
+```bash
+docker-compose up --build
+```
 
-_(Pendiente)_
+Esto iniciará, además de los contenedores ya conocidos de la Tarea 2, los siguientes:
+ 
+- `kafka-ui` — Interfaz gráfica de Kafka en `http://localhost:8080`.
+- `elasticsearch` — Almacén de métricas agregadas en `http://localhost:9200`.
+- `kibana` — Visualización de dashboards en `http://localhost:5601`.
+- `spark` — Job de Spark Structured Streaming que consume `metrics-topic`.
+---
+ 
+## Generación de consultas y escenarios de prueba
+ 
+La generación de tráfico funciona igual que en la Tarea 2:
+ 
+```bash
+docker-compose run --rm -e TOTAL_MENSAJES=N -e CONCURRENCIA=M generador_de_trafico python generadorTrafico.py
+```
+
+> [!TIP]
+> El tópico `consultas-principal` se crea con 3 particiones. Si se escalan a más de 3 consumidores, los consumidores adicionales quedarán sin partición asignada y permanecerán inactivos.
+ 
+---
+ 
+## Monitoreo de servicios vía logs
+ 
+Para verificar en tiempo real que cada servicio está procesando correctamente, abre una terminal por servicio:
+ 
+```bash
+docker logs -f cache
+docker logs -f consumidor
+docker logs -f consumidor_reintento
+docker logs -f spark
+```
 
 ---
-
+ 
+Con esto, se da por finalizada la explicación del funcionamiento de la **Tarea 3**.
+ 
+---
+ 
 # Integrantes
-
 - Fernando Cabrera  
 - Cristopher Vásquez  
+
