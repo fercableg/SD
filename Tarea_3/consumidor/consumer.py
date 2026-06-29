@@ -51,7 +51,8 @@ async def procesar_consulta(session, consulta):
 
     async with session.post(f"{CACHE_URL}/query", json=payload, timeout=10) as respuesta:
         if respuesta.status < 300:
-            return True
+            datos = await respuesta.json()
+            return datos
         raise Exception(f"Cache: {respuesta.status}")
 
 async def consumidor():
@@ -82,35 +83,40 @@ async def consumidor():
                 print(f"Querie con {id_unico} y numero de intentos {intentos}")
 
                 try:
-                    exito = await procesar_consulta(session, consulta)
+                    datos_respuesta = await procesar_consulta(session, consulta)
                     latencia = (time.time() - start) * 1000
 
-                    if exito:
-                        print(f"Querie {id_unico} consumida correctamente")
+                    if "error" in datos_respuesta:
+                        raise Exception(f"Cache devolvió error: {datos_respuesta.get('detalle')}")
 
-                        # Store metric in Redis (existing behavior)
-                        redis_client.rpush(
-                            "metricas", json.dumps({
-                                "type": "success",
-                                "consulta_id": id_unico,
-                                "intentos": intentos,
-                                "timestamp": time.time(),
-                                "latency_ms": latencia
-                            }))
+                    source = datos_respuesta.get("source")  # "cache" o "database"
+                    cache_hit = True if source == "cache" else False if source == "database" else None
 
-                        # Send metric to Kafka
-                        metrica_kafka = {
-                            "timestamp": datetime.utcfromtimestamp(time.time()).isoformat() + 'Z',
-                            "query_type": consulta.get("tipo", "unknown"),
-                            "latency_ms": round(latencia, 2),
-                            "cache_hit": None,  # Not known from consumer perspective
-                            "retry_count": intentos,  # Number of attempts made so far (including this one?)
-                            "status": "success",
-                            "zone_id": consulta.get("provincia", "unknown")
-                        }
-                        await enviar_metrica_kafka(producer, metrica_kafka)
+                    print(f"Querie {id_unico} consumida correctamente (source={source})")
 
-                        await consumer.commit()
+                    # Store metric in Redis (existing behavior)
+                    redis_client.rpush(
+                        "metricas", json.dumps({
+                            "type": "success",
+                            "consulta_id": id_unico,
+                            "intentos": intentos,
+                            "timestamp": time.time(),
+                            "latency_ms": latencia
+                        }))
+
+                    # Send metric to Kafka
+                    metrica_kafka = {
+                        "timestamp": datetime.utcfromtimestamp(time.time()).isoformat() + 'Z',
+                        "query_type": consulta.get("tipo", "unknown"),
+                        "latency_ms": round(latencia, 2),
+                        "cache_hit": cache_hit,
+                        "retry_count": intentos,  # Number of attempts made so far (including this one?)
+                        "status": "success",
+                        "zone_id": consulta.get("provincia", "unknown")
+                    }
+                    await enviar_metrica_kafka(producer, metrica_kafka)
+
+                    await consumer.commit()
 
                 except Exception as error:
                     latencia = (time.time() - start) * 1000
@@ -136,7 +142,6 @@ async def consumidor():
                         "timestamp": datetime.utcfromtimestamp(time.time()).isoformat() + 'Z',
                         "query_type": consulta.get("tipo", "unknown"),
                         "latency_ms": round(latencia, 2),
-                        "cache_hit": None,  # Not known from consumer perspective
                         "retry_count": intentos+1,  # Number of attempts made so far (including this one?)
                         "status": "retry_sent",
                         "zone_id": consulta.get("provincia", "unknown")

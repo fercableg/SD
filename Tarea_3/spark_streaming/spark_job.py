@@ -3,13 +3,12 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
-# Define the schema for the incoming JSON messages from Kafka
 schema = StructType([
     StructField("timestamp", StringType(), True),
     StructField("query_type", StringType(), True),
     StructField("latency_ms", DoubleType(), True),
     StructField("cache_hit", BooleanType(), True),
-    StructField("retry_count", IntegerType(), True),  # Note: can be null
+    StructField("retry_count", IntegerType(), True),
     StructField("status", StringType(), True),
     StructField("zone_id", StringType(), True)
 ])
@@ -43,24 +42,23 @@ def main():
         .config("spark.sql.shuffle.partitions", "2") \
         .getOrCreate()
 
-    # Reduce log verbosity
     spark.sparkContext.setLogLevel("WARN")
 
-    # Read from Kafka (topic: consultas-principal)
+    # Lee los eventos de métrica del tópico metrics-topic
     kafka_df = spark.readStream \
         .format("kafka") \
         .option("kafka.bootstrap.servers", "kafka:9092") \
-        .option("subscribe", "consultas-principal") \
+        .option("subscribe", "metrics-topic") \
         .option("startingOffsets", "latest") \
         .load()
 
-    # Parse the JSON value
+    # Se parsea a .json
     parsed_df = kafka_df.select(
         from_json(col("value").cast("string"), schema).alias("data")
     ).select("data.*")
 
-    # Convert timestamp string to timestamp type
-    # Nota: se usa parsed_df directamente y se asignan las nuevas columnas
+
+    # Se usa parsed_df para las nuevas columnas
     processed_df = parsed_df.withColumn(
         "event_time", to_timestamp(col("timestamp"))
     ).withColumn(
@@ -69,7 +67,7 @@ def main():
         "retry_count", col("retry_count").cast("integer")
     )
 
-    # Define window: 1 minute window, sliding every 30 seconds
+    # Cada cuanto tiempo se va a monitorear el streaming
     windowed_df = (
         processed_df
         .withWatermark("event_time", "1 minute")
@@ -95,7 +93,7 @@ def main():
         )
     )
 
-    # Write to Elasticsearch using foreachBatch
+    # Se envia al ES
     query = windowed_df.writeStream \
         .foreachBatch(write_batch_to_es) \
         .outputMode("update") \

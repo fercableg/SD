@@ -8,5 +8,4 @@ RUN mkdir -p /home/spark/.ivy2 && chown -R spark:spark /home/spark/.ivy2
 USER spark
 WORKDIR /opt/spark
 
-# Copia tu script (ajusta la ruta si es necesario)
 COPY spark_job.py /opt/spark/jobs/
