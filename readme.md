@@ -307,6 +307,33 @@ docker logs -f spark
 ```
 
 ---
+
+## Pipeline de métricas: de la consulta a Kafka
+ 
+Cada evento de métrica se publica en el tópico `metrics-topic` con el siguiente formato JSON:
+ 
+```json
+{
+  "timestamp": "YYYY-MM-DDT12:00:00.000000Z",
+  "query_type": "QI",
+  "latency_ms": XX.X,
+  "cache_hit": bool,
+  "retry_count": Y,
+  "status": "value",
+  "zone_id": "name_comuna"
+}
+```
+ 
+El funcionamiento en el tópico `metrics-topic`:
+ 
+- Al momento de una consulta cargarse en `cache.py`, se publica un evento por cada resolución de consulta.
+- En `consumer.py` se publica un evento por cada consulta procesada desde `consultas-principal`.
+- Y en `consumidorSecundario.py` se publican eventos correspondiente al número de intento.
+> [!WARNING]
+> Como esta diseñado la arquitectura, `cache.py` y `consumer.py` pueden publicar un evento, cada uno por la misma consulta exitosa, que produce un conteo duplicado en `total_attempts`, y en el throughput agregado por Spark.
+
+---
+
  
 Con esto, se da por finalizada la explicación del funcionamiento de la **Tarea 3**.
  
